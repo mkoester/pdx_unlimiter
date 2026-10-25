@@ -21,7 +21,9 @@ public final class SavegameEntry<T, I extends SavegameInfo<T>> implements Compar
     private final SavegameNotes notes;
     private final List<String> sourceFileChecksums;
     private final String originalFileName;
-    private final String originalOptionalName;
+    private final String importedName;
+    private String fileNameChoiceName;
+    private String chosenFileName;
 
     public SavegameEntry(
             String name,
@@ -31,7 +33,7 @@ public final class SavegameEntry<T, I extends SavegameInfo<T>> implements Compar
             SavegameNotes notes,
             List<String> sourceFileChecksums,
             String originalFileName,
-            String originalOptionalName) {
+            String importedName) {
         this.state = new SimpleObjectProperty<>(State.INACTIVE);
         this.contentChecksum = contentChecksum;
         this.name = new SimpleStringProperty(name);
@@ -41,7 +43,7 @@ public final class SavegameEntry<T, I extends SavegameInfo<T>> implements Compar
         this.notes = notes;
         this.sourceFileChecksums = new ArrayList<>(sourceFileChecksums);
         this.originalFileName = originalFileName;
-        this.originalOptionalName = originalOptionalName;
+        this.importedName = importedName;
         this.state.addListener((c, o, n) -> {
             TrackEvent.debug("Changing state of " + this.name.get() + " from " + o + " to " + n);
         });
@@ -153,8 +155,21 @@ public final class SavegameEntry<T, I extends SavegameInfo<T>> implements Compar
         return originalFileName;
     }
 
-    public String getOriginalOptionalName() {
-        return originalOptionalName;
+    public String getImportedName() {
+        return importedName;
+    }
+
+    public String getFileNameChoiceName() {
+        return fileNameChoiceName;
+    }
+
+    public String getChosenFileName() {
+        return chosenFileName;
+    }
+
+    public void setFileNameChoice(String forName, String fileName) {
+        this.fileNameChoiceName = forName;
+        this.chosenFileName = fileName;
     }
 
     public State getState() {

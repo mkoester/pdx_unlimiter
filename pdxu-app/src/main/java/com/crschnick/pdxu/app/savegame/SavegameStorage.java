@@ -299,18 +299,22 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
                                 .map(v -> v.stringValue())
                                 .collect(Collectors.toList()))
                         .orElse(List.of());
-                String originalFileName = Optional.ofNullable(entryNode.get("originalFileName"))
-                        .map(n -> n.asString(""))
-                        .filter(s -> !s.isBlank())
-                        .orElse(null);
-                String originalOptionalName = Optional.ofNullable(entryNode.get("originalOptionalName"))
-                        .map(n -> n.asString(""))
-                        .filter(s -> !s.isBlank())
-                        .orElse(null);
-                addEntry(collection, new SavegameEntry<>(
-                        name, eId, checksum, date, notes, sourceFileChecksums, originalFileName, originalOptionalName));
+                String originalFileName = optionalText(entryNode, "originalFileName");
+                String importedName = optionalText(entryNode, "importedName");
+                var entry = new SavegameEntry<T, I>(
+                        name, eId, checksum, date, notes, sourceFileChecksums, originalFileName, importedName);
+                entry.setFileNameChoice(
+                        optionalText(entryNode, "fileNameChoiceName"), optionalText(entryNode, "chosenFileName"));
+                addEntry(collection, entry);
             });
         }
+    }
+
+    private static String optionalText(JsonNode node, String key) {
+        return Optional.ofNullable(node.get(key))
+                .map(n -> n.asString(""))
+                .filter(s -> !s.isBlank())
+                .orElse(null);
     }
 
     private synchronized void saveData() {
@@ -325,22 +329,34 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
             ObjectNode campaignFileNode = JsonNodeFactory.instance.objectNode();
             ArrayNode entries = campaignFileNode.putArray("entries");
             col.getSavegames().stream()
-                    .map(entry -> JsonNodeFactory.instance
-                            .objectNode()
-                            .put("name", entry.getName())
-                            .put("date", entry.getDate().toString())
-                            .put("checksum", entry.getContentChecksum())
-                            .put("uuid", entry.getUuid().toString())
-                            .<ObjectNode>set(
-                                    "sourceFileChecksums",
-                                    JsonNodeFactory.instance
-                                            .arrayNode()
-                                            .addAll(entry.getSourceFileChecksums().stream()
-                                                    .map(StringNode::new)
-                                                    .collect(Collectors.toList())))
-                            .<ObjectNode>set("notes", SavegameNotes.toNode(entry.getNotes()))
-                            .<ObjectNode>put("originalFileName", entry.getOriginalFileName())
-                            .<ObjectNode>put("originalOptionalName", entry.getOriginalOptionalName()))
+                    .map(entry -> {
+                        ObjectNode node = JsonNodeFactory.instance
+                                .objectNode()
+                                .put("name", entry.getName())
+                                .put("date", entry.getDate().toString())
+                                .put("checksum", entry.getContentChecksum())
+                                .put("uuid", entry.getUuid().toString())
+                                .<ObjectNode>set(
+                                        "sourceFileChecksums",
+                                        JsonNodeFactory.instance
+                                                .arrayNode()
+                                                .addAll(entry.getSourceFileChecksums().stream()
+                                                        .map(StringNode::new)
+                                                        .collect(Collectors.toList())))
+                                .<ObjectNode>set("notes", SavegameNotes.toNode(entry.getNotes()));
+                        // Only written for entries that have them, older entries stay unchanged
+                        if (entry.getOriginalFileName() != null) {
+                            node.put("originalFileName", entry.getOriginalFileName());
+                        }
+                        if (entry.getImportedName() != null) {
+                            node.put("importedName", entry.getImportedName());
+                        }
+                        if (entry.getChosenFileName() != null) {
+                            node.put("fileNameChoiceName", entry.getFileNameChoiceName());
+                            node.put("chosenFileName", entry.getChosenFileName());
+                        }
+                        return node;
+                    })
                     .forEach(entries::add);
 
             if (!campaignFileNode.equals(writtenCampaignNodes.get(col.getUuid()))) {
@@ -374,15 +390,17 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
             String name,
             String sourceFileChecksum,
             String defaultCampaignName,
-            String originalFileName,
-            String originalOptionalName) {
+            String originalFileName) {
+        var entryName = name != null ? name : getDefaultEntryName(info);
         SavegameEntry<T, I> e = new SavegameEntry<>(
-                name != null ? name : getDefaultEntryName(info),
+                entryName,
                 entryUuid,
                 checksum,
                 info.getData().getDate(),
                 SavegameNotes.empty(),
-                sourceFileChecksum != null ? List.of(sourceFileChecksum) : List.of(), originalFileName, originalOptionalName);
+                sourceFileChecksum != null ? List.of(sourceFileChecksum) : List.of(),
+                originalFileName,
+                originalFileName != null ? entryName : null);
         if (this.getSavegameCampaign(campainUuid).isEmpty()) {
             TrackEvent.debug("Adding new campaign " + getDefaultCampaignName(info));
             var img = GameGuiFactory.<T, I>get(ALL.inverseBidiMap().get(this))
@@ -886,8 +904,7 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
                         sourceFileChecksum,
                         null,
                         optionalName,
-                        originalFileName,
-                        optionalName);
+                        originalFileName);
             }
 
             @Override
@@ -916,7 +933,7 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
             I info,
             String sourceFileChecksum,
             String defaultCampaignName) {
-        addEntryToCollection(campaignId, writer, checksum, info, sourceFileChecksum, defaultCampaignName, null, null, null);
+        addEntryToCollection(campaignId, writer, checksum, info, sourceFileChecksum, defaultCampaignName, null, null);
     }
 
     private void addEntryToCollection(
@@ -927,8 +944,7 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
             String sourceFileChecksum,
             String defaultCampaignName,
             String entryName,
-            String originalFileName,
-            String originalOptionalName) {
+            String originalFileName) {
         TrackEvent.debug("Campaign UUID is " + campaignId.toString());
 
         UUID saveUuid = UUID.randomUUID();
@@ -951,8 +967,7 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
                     entryName,
                     sourceFileChecksum,
                     defaultCampaignName,
-                    originalFileName,
-                    originalOptionalName);
+                    originalFileName);
         } catch (Exception e) {
             ErrorEventFactory.fromThrowable(e).handle();
         }

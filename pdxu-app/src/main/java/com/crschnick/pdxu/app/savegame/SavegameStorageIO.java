@@ -46,12 +46,9 @@ public class SavegameStorageIO {
             var writtenEntries = new HashSet<String>();
             for (SavegameEntry<T, I> e : c.entryStream().toList()) {
                 var branchSuffix = " (" + c.getUuid() + ")";
-                var originalFileName = e.getOriginalFileName();
-                var eName = originalFileName != null
-                        ? FileSystemHelper.getFileSystemCompatibleName(originalFileName)
-                        : FileSystemHelper.getFileSystemCompatibleName(e.getName()) + branchSuffix + "."
-                                + storage.getType().getFileEnding();
-                var outName = getUniqueName(eName, writtenEntries);
+                var eName = FileSystemHelper.getFileSystemCompatibleName(e.getName());
+                var outName = getUniqueName(eName, writtenEntries) + branchSuffix + "."
+                        + storage.getType().getFileEnding();
 
                 Path fileOut = colDir.resolve(outName);
                 storage.copySavegameTo(e, fileOut);

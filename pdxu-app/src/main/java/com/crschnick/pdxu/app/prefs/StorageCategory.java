@@ -9,8 +9,12 @@ import com.crschnick.pdxu.app.platform.LabelGraphic;
 import com.crschnick.pdxu.app.platform.OptionsBuilder;
 import com.crschnick.pdxu.app.savegame.SavegameStorageIO;
 
+import atlantafx.base.theme.Styles;
+
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class StorageCategory extends AppPrefsCategory {
 
@@ -26,13 +30,17 @@ public class StorageCategory extends AppPrefsCategory {
 
     public Comp<?> create() {
         var prefs = AppPrefs.get();
+        var saveNamePattern = new TextFieldComp(prefs.stellarisSaveNamePattern);
+        saveNamePattern.apply(struc -> struc.get()
+                .textProperty()
+                .subscribe(t -> struc.get().pseudoClassStateChanged(Styles.STATE_DANGER, !isValidPattern(t))));
         var builder = new OptionsBuilder();
         builder.addTitle("storage")
                 .sub(new OptionsBuilder()
                         .pref(prefs.storageDirectory)
                         .addComp(new PathChoiceComp(prefs.storageDirectory, "storageDirectory", true).maxWidth(600))
                         .pref(prefs.stellarisSaveNamePattern)
-                        .addComp(new TextFieldComp(prefs.stellarisSaveNamePattern).maxWidth(600))
+                        .addComp(saveNamePattern.maxWidth(600))
                         .spacer(19)
                         .addComp(
                                 new TileButtonComp("exportStorage", "exportStorageDescription", "mdi-export", e -> {
@@ -44,5 +52,18 @@ public class StorageCategory extends AppPrefsCategory {
                                         .maxWidth(2000),
                                 null));
         return builder.buildComp();
+    }
+
+    private static boolean isValidPattern(String pattern) {
+        if (pattern == null || pattern.isEmpty()) {
+            return true;
+        }
+
+        try {
+            Pattern.compile(pattern);
+            return true;
+        } catch (PatternSyntaxException e) {
+            return false;
+        }
     }
 }

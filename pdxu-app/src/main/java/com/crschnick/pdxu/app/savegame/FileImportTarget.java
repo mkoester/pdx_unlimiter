@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public abstract class FileImportTarget {
 
@@ -84,6 +85,10 @@ public abstract class FileImportTarget {
     protected abstract String getRawName();
 
     protected String getOptionalName() {
+        return null;
+    }
+
+    protected String getOriginalFileName() {
         return null;
     }
 
@@ -261,7 +266,7 @@ public abstract class FileImportTarget {
                                         getSourceFileChecksum(),
                                         getCampaignIdOverride().orElse(null),
                                         getOptionalName(),
-                                        path.getFileName().toString()));
+                                        getOriginalFileName()));
                             },
                             true);
         }
@@ -359,15 +364,26 @@ public abstract class FileImportTarget {
         }
 
         @Override
+        protected String getOriginalFileName() {
+            return path.getFileName().toString();
+        }
+
+        @Override
         protected String getOptionalName() {
+            var pattern = AppPrefs.get().stellarisSaveNamePattern().getValue();
+            if (pattern == null || pattern.isEmpty()) {
+                return null;
+            }
+
             try {
-                var pattern = AppPrefs.get().stellarisSaveNamePattern().getValue();
                 var matcher = Pattern.compile(pattern)
                         .matcher(FilenameUtils.getBaseName(path.getFileName().toString()));
-                return matcher.find() && matcher.groupCount() > 0 && !matcher.group(1).isBlank()
+                return matcher.find() && matcher.groupCount() > 0 && matcher.group(1) != null
+                                && !matcher.group(1).isBlank()
                         ? matcher.group(1).trim()
                         : null;
-            } catch (RuntimeException ignored) {
+            } catch (PatternSyntaxException ignored) {
+                // Flagged in the settings field
                 return null;
             }
         }

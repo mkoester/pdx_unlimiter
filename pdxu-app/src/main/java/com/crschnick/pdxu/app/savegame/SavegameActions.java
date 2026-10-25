@@ -26,7 +26,7 @@ public class SavegameActions {
             SavegameEntry<T, I> entry, boolean includeEntryName) {
         return Optional.ofNullable(SavegameContext.mapSavegame(entry, ctx -> {
             var target = FileExportTarget.createExportTarget(
-                    FileUtils.getTempDirectory().toPath(), includeEntryName, entry);
+                    FileUtils.getTempDirectory().toPath(), includeEntryName, false, entry);
 
             Path out;
             try {
