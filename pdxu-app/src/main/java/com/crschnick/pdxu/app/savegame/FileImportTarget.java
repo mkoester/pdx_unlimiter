@@ -5,6 +5,7 @@ import com.crschnick.pdxu.app.core.TaskExecutor;
 import com.crschnick.pdxu.app.installation.Game;
 import com.crschnick.pdxu.app.issue.ErrorEventFactory;
 import com.crschnick.pdxu.app.issue.TrackEvent;
+import com.crschnick.pdxu.app.prefs.AppPrefs;
 import com.crschnick.pdxu.io.savegame.SavegameParseResult;
 import com.crschnick.pdxu.io.savegame.SavegameType;
 
@@ -81,6 +82,10 @@ public abstract class FileImportTarget {
     public abstract void delete();
 
     protected abstract String getRawName();
+
+    protected String getOptionalName() {
+        return null;
+    }
 
     private static final Pattern ID_MATCHER =
             Pattern.compile("\\s*\\(([\\w]{8}-[\\w]{4}-[\\w]{4}-[\\w]{4}-[\\w]{12})\\)");
@@ -254,7 +259,9 @@ public abstract class FileImportTarget {
                                         path,
                                         true,
                                         getSourceFileChecksum(),
-                                        getCampaignIdOverride().orElse(null)));
+                                        getCampaignIdOverride().orElse(null),
+                                        getOptionalName(),
+                                        path.getFileName().toString()));
                             },
                             true);
         }
@@ -349,6 +356,20 @@ public abstract class FileImportTarget {
                     ? path.getParent().getFileName().toString().substring(0, gameIdSplit)
                     : path.getParent().getFileName().toString();
             return campaignName + " (" + date + ")";
+        }
+
+        @Override
+        protected String getOptionalName() {
+            try {
+                var pattern = AppPrefs.get().stellarisSaveNamePattern().getValue();
+                var matcher = Pattern.compile(pattern)
+                        .matcher(FilenameUtils.getBaseName(path.getFileName().toString()));
+                return matcher.find() && matcher.groupCount() > 0 && !matcher.group(1).isBlank()
+                        ? matcher.group(1).trim()
+                        : null;
+            } catch (RuntimeException ignored) {
+                return null;
+            }
         }
     }
 

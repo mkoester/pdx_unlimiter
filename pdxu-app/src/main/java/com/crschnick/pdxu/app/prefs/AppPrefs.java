@@ -142,6 +142,12 @@ public final class AppPrefs {
             .valueClass(Path.class)
             .requiresRestart(true)
             .build());
+    final Property<String> stellarisSaveNamePattern = map(Mapping.builder()
+            .property(new SimpleStringProperty("^\\d{4}\\.\\d{2}\\.\\d{2}_(.+)$"))
+            .key("stellarisSaveNamePattern")
+            .valueClass(String.class)
+            .requiresRestart(false)
+            .build());
     final ObjectProperty<Path> ironyDirectory = map(Mapping.builder()
             .property(new SimpleObjectProperty<>(
                     IronyHelper.getIronyDefaultInstallPath().orElse(null)))
@@ -280,6 +286,10 @@ public final class AppPrefs {
 
     public ObservableValue<Path> storageDirectory() {
         return storageDirectory;
+    }
+
+    public ObservableValue<String> stellarisSaveNamePattern() {
+        return stellarisSaveNamePattern;
     }
 
     public ObservableValue<Boolean> launchIrony() {

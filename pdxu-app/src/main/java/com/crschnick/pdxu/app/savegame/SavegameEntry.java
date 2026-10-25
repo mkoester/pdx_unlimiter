@@ -20,6 +20,8 @@ public final class SavegameEntry<T, I extends SavegameInfo<T>> implements Compar
     private final GameDate date;
     private final SavegameNotes notes;
     private final List<String> sourceFileChecksums;
+    private final String originalFileName;
+    private final String originalOptionalName;
 
     public SavegameEntry(
             String name,
@@ -27,7 +29,9 @@ public final class SavegameEntry<T, I extends SavegameInfo<T>> implements Compar
             String contentChecksum,
             GameDate date,
             SavegameNotes notes,
-            List<String> sourceFileChecksums) {
+            List<String> sourceFileChecksums,
+            String originalFileName,
+            String originalOptionalName) {
         this.state = new SimpleObjectProperty<>(State.INACTIVE);
         this.contentChecksum = contentChecksum;
         this.name = new SimpleStringProperty(name);
@@ -36,6 +40,8 @@ public final class SavegameEntry<T, I extends SavegameInfo<T>> implements Compar
         this.date = date;
         this.notes = notes;
         this.sourceFileChecksums = new ArrayList<>(sourceFileChecksums);
+        this.originalFileName = originalFileName;
+        this.originalOptionalName = originalOptionalName;
         this.state.addListener((c, o, n) -> {
             TrackEvent.debug("Changing state of " + this.name.get() + " from " + o + " to " + n);
         });
@@ -141,6 +147,14 @@ public final class SavegameEntry<T, I extends SavegameInfo<T>> implements Compar
 
     public SavegameNotes getNotes() {
         return notes;
+    }
+
+    public String getOriginalFileName() {
+        return originalFileName;
+    }
+
+    public String getOriginalOptionalName() {
+        return originalOptionalName;
     }
 
     public State getState() {

@@ -299,7 +299,16 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
                                 .map(v -> v.stringValue())
                                 .collect(Collectors.toList()))
                         .orElse(List.of());
-                addEntry(collection, new SavegameEntry<>(name, eId, checksum, date, notes, sourceFileChecksums));
+                String originalFileName = Optional.ofNullable(entryNode.get("originalFileName"))
+                        .map(n -> n.asString(""))
+                        .filter(s -> !s.isBlank())
+                        .orElse(null);
+                String originalOptionalName = Optional.ofNullable(entryNode.get("originalOptionalName"))
+                        .map(n -> n.asString(""))
+                        .filter(s -> !s.isBlank())
+                        .orElse(null);
+                addEntry(collection, new SavegameEntry<>(
+                        name, eId, checksum, date, notes, sourceFileChecksums, originalFileName, originalOptionalName));
             });
         }
     }
@@ -329,7 +338,9 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
                                             .addAll(entry.getSourceFileChecksums().stream()
                                                     .map(StringNode::new)
                                                     .collect(Collectors.toList())))
-                            .<ObjectNode>set("notes", SavegameNotes.toNode(entry.getNotes())))
+                            .<ObjectNode>set("notes", SavegameNotes.toNode(entry.getNotes()))
+                            .<ObjectNode>put("originalFileName", entry.getOriginalFileName())
+                            .<ObjectNode>put("originalOptionalName", entry.getOriginalOptionalName()))
                     .forEach(entries::add);
 
             if (!campaignFileNode.equals(writtenCampaignNodes.get(col.getUuid()))) {
@@ -362,14 +373,16 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
             I info,
             String name,
             String sourceFileChecksum,
-            String defaultCampaignName) {
+            String defaultCampaignName,
+            String originalFileName,
+            String originalOptionalName) {
         SavegameEntry<T, I> e = new SavegameEntry<>(
                 name != null ? name : getDefaultEntryName(info),
                 entryUuid,
                 checksum,
                 info.getData().getDate(),
                 SavegameNotes.empty(),
-                sourceFileChecksum != null ? List.of(sourceFileChecksum) : List.of());
+                sourceFileChecksum != null ? List.of(sourceFileChecksum) : List.of(), originalFileName, originalOptionalName);
         if (this.getSavegameCampaign(campainUuid).isEmpty()) {
             TrackEvent.debug("Adding new campaign " + getDefaultCampaignName(info));
             var img = GameGuiFactory.<T, I>get(ALL.inverseBidiMap().get(this))
@@ -743,11 +756,22 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
 
     protected Optional<SavegameParseResult> importSavegame(
             Path file, boolean checkDuplicate, String sourceFileChecksum, UUID customCampaignId) {
+        return importSavegame(file, checkDuplicate, sourceFileChecksum, customCampaignId, null, null);
+    }
+
+    protected Optional<SavegameParseResult> importSavegame(
+            Path file,
+            boolean checkDuplicate,
+            String sourceFileChecksum,
+            UUID customCampaignId,
+            String optionalName,
+            String originalFileName) {
         if (loadFailed) {
             return Optional.empty();
         }
 
-        var status = importSavegameData(file, checkDuplicate, sourceFileChecksum, customCampaignId);
+        var status = importSavegameData(
+                file, checkDuplicate, sourceFileChecksum, customCampaignId, optionalName, originalFileName);
         saveData();
         return status;
     }
@@ -791,7 +815,12 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
     }
 
     private Optional<SavegameParseResult> importSavegameData(
-            Path file, boolean checkDuplicate, String sourceFileChecksum, UUID customCampaignId) {
+            Path file,
+            boolean checkDuplicate,
+            String sourceFileChecksum,
+            UUID customCampaignId,
+            String optionalName,
+            String originalFileName) {
         TrackEvent.debug("Parsing file " + file.toString());
         final SavegameParseResult[] result = new SavegameParseResult[1];
         String checksum;
@@ -855,7 +884,10 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
                         checksum,
                         info,
                         sourceFileChecksum,
-                        null);
+                        null,
+                        optionalName,
+                        originalFileName,
+                        optionalName);
             }
 
             @Override
@@ -884,6 +916,19 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
             I info,
             String sourceFileChecksum,
             String defaultCampaignName) {
+        addEntryToCollection(campaignId, writer, checksum, info, sourceFileChecksum, defaultCampaignName, null, null, null);
+    }
+
+    private void addEntryToCollection(
+            UUID campaignId,
+            FailableConsumer<Path, Exception> writer,
+            String checksum,
+            I info,
+            String sourceFileChecksum,
+            String defaultCampaignName,
+            String entryName,
+            String originalFileName,
+            String originalOptionalName) {
         TrackEvent.debug("Campaign UUID is " + campaignId.toString());
 
         UUID saveUuid = UUID.randomUUID();
@@ -898,7 +943,16 @@ public abstract class SavegameStorage<T, I extends SavegameInfo<T>> {
             JacksonMapper.getDefault()
                     .writeValue(entryPath.resolve(getInfoFileName()).toFile(), info);
 
-            addNewEntryToCampaign(campaignId, saveUuid, checksum, info, null, sourceFileChecksum, defaultCampaignName);
+            addNewEntryToCampaign(
+                    campaignId,
+                    saveUuid,
+                    checksum,
+                    info,
+                    entryName,
+                    sourceFileChecksum,
+                    defaultCampaignName,
+                    originalFileName,
+                    originalOptionalName);
         } catch (Exception e) {
             ErrorEventFactory.fromThrowable(e).handle();
         }

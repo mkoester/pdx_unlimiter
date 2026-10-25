@@ -1,16 +1,22 @@
 package com.crschnick.pdxu.app.savegame;
 
 import com.crschnick.pdxu.app.info.SavegameInfo;
+import com.crschnick.pdxu.app.core.window.AppDialog;
 import com.crschnick.pdxu.app.info.ck2.Ck2SavegameInfo;
 import com.crschnick.pdxu.app.info.stellaris.StellarisSavegameInfo;
 import com.crschnick.pdxu.app.installation.Game;
+import com.crschnick.pdxu.app.prefs.AppPrefs;
+import com.crschnick.pdxu.app.util.FileSystemHelper;
 import com.crschnick.pdxu.model.ck2.Ck2Tag;
 import com.crschnick.pdxu.model.stellaris.StellarisTag;
 
 import org.apache.commons.io.FilenameUtils;
 
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.function.Function;
+
+import javafx.beans.property.SimpleStringProperty;
 
 public abstract class FileExportTarget<T, I extends SavegameInfo<T>> {
 
@@ -134,10 +140,34 @@ public abstract class FileExportTarget<T, I extends SavegameInfo<T>> {
             if (entry.getInfo().getData().isIronman()) {
                 file = dir.resolve("ironman.sav");
             } else {
-                file = dir.resolve(entry.getDate().toString() + ".sav");
+                var originalFileName = entry.getOriginalFileName();
+                var fileName = Path.of(entry.getDate() + ".sav");
+                var editedName = getCurrentOptionalName();
+                if (originalFileName != null
+                        && !Objects.equals(editedName, entry.getOriginalOptionalName())) {
+                    var safeName = editedName != null
+                            ? "_" + FileSystemHelper.getFileSystemCompatibleName(editedName)
+                            : "";
+                    var proposedFileName = entry.getDate() + safeName + ".sav";
+                    boolean useEditedName = AppDialog.choose(
+                            "savegameFilenameChoiceTitle",
+                            new SimpleStringProperty(originalFileName + " → " + proposedFileName),
+                            "useOriginalFilename",
+                            "useEditedSaveName");
+                    fileName = Path.of(useEditedName ? proposedFileName : originalFileName).getFileName();
+                } else if (originalFileName != null) {
+                    fileName = Path.of(originalFileName).getFileName();
+                }
+                file = dir.resolve(fileName);
             }
             storage.copySavegameTo(entry, file);
             return file;
+        }
+
+        private String getCurrentOptionalName() {
+            var dateName = entry.getDate().toDisplayString(AppPrefs.get().language().getValue().getLocale());
+            var name = entry.getName().trim();
+            return name.isBlank() || name.equals(dateName) ? null : name;
         }
     }
 }

@@ -165,4 +165,13 @@ public class AppDialog {
         showAndWait(modal);
         return confirmed.get();
     }
+
+    public static boolean choose(String titleKey, ObservableValue<String> content, String firstKey, String secondKey) {
+        var secondSelected = new AtomicBoolean(false);
+        var modal = ModalOverlay.of(titleKey, dialogText(content));
+        modal.addButton(new ModalButton(firstKey, null, true, true));
+        modal.addButton(new ModalButton(secondKey, () -> secondSelected.set(true), true, false));
+        showAndWait(modal);
+        return secondSelected.get();
+    }
 }

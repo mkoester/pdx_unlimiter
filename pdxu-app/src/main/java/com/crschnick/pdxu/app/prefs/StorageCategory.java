@@ -2,6 +2,7 @@ package com.crschnick.pdxu.app.prefs;
 
 import com.crschnick.pdxu.app.comp.Comp;
 import com.crschnick.pdxu.app.comp.base.PathChoiceComp;
+import com.crschnick.pdxu.app.comp.base.TextFieldComp;
 import com.crschnick.pdxu.app.comp.base.TileButtonComp;
 import com.crschnick.pdxu.app.gui.dialog.GuiSavegameIO;
 import com.crschnick.pdxu.app.platform.LabelGraphic;
@@ -30,6 +31,8 @@ public class StorageCategory extends AppPrefsCategory {
                 .sub(new OptionsBuilder()
                         .pref(prefs.storageDirectory)
                         .addComp(new PathChoiceComp(prefs.storageDirectory, "storageDirectory", true).maxWidth(600))
+                        .pref(prefs.stellarisSaveNamePattern)
+                        .addComp(new TextFieldComp(prefs.stellarisSaveNamePattern).maxWidth(600))
                         .spacer(19)
                         .addComp(
                                 new TileButtonComp("exportStorage", "exportStorageDescription", "mdi-export", e -> {
